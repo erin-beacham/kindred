@@ -30,6 +30,7 @@
   const sampleState = {
     activeView: "today",
     selectedFriendId: null,
+    hiddenIdeas: [],
     friends: [
       {
         id: uid(),
@@ -125,6 +126,18 @@
     return Boolean(value && Array.isArray(value.friends));
   }
 
+  function normalizeState(value) {
+    const normalized = cloneState(value);
+    if (!Array.isArray(normalized.hiddenIdeas)) normalized.hiddenIdeas = [];
+    normalized.friends = normalized.friends.map((friend) => ({
+      ...friend,
+      interests: Array.isArray(friend.interests) ? friend.interests : [],
+      events: Array.isArray(friend.events) ? friend.events : [],
+      logs: Array.isArray(friend.logs) ? friend.logs : []
+    }));
+    return normalized;
+  }
+
   function openDatabase() {
     return new Promise((resolve, reject) => {
       if (!("indexedDB" in window)) {
@@ -169,18 +182,19 @@
   async function loadState() {
     try {
       const saved = await databaseRequest("readonly", (store) => store.get(STATE_KEY));
-      if (isValidState(saved)) return saved;
+      if (isValidState(saved)) return normalizeState(saved);
 
       const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
       if (isValidState(legacy)) {
-        await databaseRequest("readwrite", (store) => store.put(legacy, STATE_KEY));
+        const migrated = normalizeState(legacy);
+        await databaseRequest("readwrite", (store) => store.put(migrated, STATE_KEY));
         localStorage.removeItem(LEGACY_STORAGE_KEY);
-        return legacy;
+        return migrated;
       }
     } catch (error) {
       console.warn(error);
     }
-    return cloneState(sampleState);
+    return normalizeState(sampleState);
   }
 
   function saveState() {
@@ -401,13 +415,21 @@
           <p>${cadence(friend)[1]} - next ${formatDate(dueDate(friend))}</p>
           ${renderPills(friend.interests.slice(0, 3))}
         </div>
-        <button class="tool-button" data-action="select-friend" data-id="${friend.id}" aria-label="Open profile">${icons.message}</button>
+        <div class="card-actions">
+          <button class="tool-button" data-action="select-friend" data-id="${friend.id}" aria-label="Open profile">${icons.message}</button>
+          <button class="tool-button danger" data-action="delete-friend" data-id="${friend.id}" aria-label="Delete ${escapeHtml(friend.name)}">${icons.trash}</button>
+        </div>
       </article>
     `;
   }
 
   function renderIdeas() {
-    const ideas = state.friends.flatMap((friend) => buildIdeas(friend).slice(0, 2).map((idea) => ({ friend, idea })));
+    const ideas = state.friends.flatMap((friend) =>
+      buildIdeas(friend)
+        .filter((idea) => !state.hiddenIdeas.includes(ideaKey(friend, idea)))
+        .slice(0, 2)
+        .map((idea) => ({ friend, idea }))
+    );
     return `
       <section class="view ${state.activeView === "ideas" ? "active" : ""}" data-view="ideas">
         <div class="section-head">
@@ -429,6 +451,7 @@
         <div class="pill-row">
           <button class="tiny-action" data-action="copy-idea" data-text="${escapeHtml(idea)}">Copy</button>
           <button class="tiny-action" data-action="select-friend" data-id="${friend.id}">Profile</button>
+          <button class="tiny-action danger" data-action="delete-idea" data-id="${friend.id}" data-idea="${escapeHtml(idea)}" aria-label="Delete idea for ${escapeHtml(friend.name)}">${icons.trash}</button>
         </div>
       </article>
     `;
@@ -452,8 +475,11 @@
   function renderEventCard(item) {
     return `
       <article class="event-card">
-        <h3>${escapeHtml(item.title)} - ${escapeHtml(item.friend.name)}</h3>
-        <p>${formatDate(item.date)} - ${relativeDay(item.date)}</p>
+        <div>
+          <h3>${escapeHtml(item.title)} - ${escapeHtml(item.friend.name)}</h3>
+          <p>${formatDate(item.date)} - ${relativeDay(item.date)}</p>
+        </div>
+        <button class="tool-button danger" data-action="delete-date" data-id="${item.friend.id}" data-event-id="${item.type === "event" ? item.id : ""}" data-date-type="${item.type}" aria-label="Delete ${escapeHtml(item.title)} for ${escapeHtml(item.friend.name)}">${icons.trash}</button>
       </article>
     `;
   }
@@ -505,13 +531,24 @@
           <div class="section-head"><h2>Notes</h2></div>
           <p>${escapeHtml(friend.notes || "No notes yet.")}</p>
           <div class="section-head"><h2>Ideas</h2></div>
-          <div class="idea-list">${buildIdeas(friend).map((idea) => `<div class="idea"><p>${escapeHtml(idea)}</p></div>`).join("")}</div>
+          <div class="idea-list">${buildIdeas(friend)
+            .filter((idea) => !state.hiddenIdeas.includes(ideaKey(friend, idea)))
+            .map(
+              (idea) => `
+                <div class="idea">
+                  <p>${escapeHtml(idea)}</p>
+                  <div class="pill-row">
+                    <button class="tiny-action danger" data-action="delete-idea" data-id="${friend.id}" data-idea="${escapeHtml(idea)}" aria-label="Delete idea for ${escapeHtml(friend.name)}">${icons.trash}</button>
+                  </div>
+                </div>`
+            )
+            .join("")}</div>
           <div class="section-head"><h2>History</h2></div>
           <div class="log-list">${(friend.logs || []).length ? friend.logs.map(renderLog).join("") : renderEmpty("No contact logged.", "After you reach out, jot down what mattered.")}</div>
           <div class="pill-row">
             <button class="primary-action" data-action="open-log" data-id="${friend.id}">${icons.check}Log Contact</button>
             <button class="secondary-action" data-action="edit-friend" data-id="${friend.id}">Edit</button>
-            <button class="tiny-action" data-action="delete-friend" data-id="${friend.id}">${icons.trash}</button>
+            <button class="tiny-action danger" data-action="delete-friend" data-id="${friend.id}" aria-label="Delete ${escapeHtml(friend.name)}">${icons.trash}</button>
           </div>
         </div>
       </section>
@@ -584,8 +621,12 @@
   }
 
   function bestPrompt(friend) {
-    const ideas = buildIdeas(friend);
+    const ideas = buildIdeas(friend).filter((idea) => !state.hiddenIdeas.includes(ideaKey(friend, idea)));
     return ideas[0] || `Send ${friend.name.split(" ")[0]} a short note and ask what has been taking up their attention lately.`;
+  }
+
+  function ideaKey(friend, idea) {
+    return `${friend.id}:${idea}`;
   }
 
   function buildIdeas(friend) {
@@ -657,6 +698,8 @@
     if (action === "close-modal") closeModal();
     if (action === "copy-idea") copyIdea(button.dataset.text);
     if (action === "delete-friend") deleteFriend(button.dataset.id);
+    if (action === "delete-idea") deleteIdea(button.dataset.id, button.dataset.idea);
+    if (action === "delete-date") deleteDate(button.dataset.id, button.dataset.eventId, button.dataset.dateType);
     if (action === "enable-reminders") enableReminders();
     if (action === "send-reminder-check") notifyDueItems();
   }
@@ -724,9 +767,37 @@
     const friend = state.friends.find((item) => item.id === id);
     if (!friend || !confirm(`Delete ${friend.name}?`)) return;
     state.friends = state.friends.filter((item) => item.id !== id);
+    state.hiddenIdeas = state.hiddenIdeas.filter((key) => !key.startsWith(`${id}:`));
     state.selectedFriendId = null;
+    saveState();
     closeModal();
     showToast("Friend deleted");
+  }
+
+  function deleteIdea(id, idea) {
+    const friend = state.friends.find((item) => item.id === id);
+    if (!friend || !idea) return;
+    const key = ideaKey(friend, idea);
+    if (!state.hiddenIdeas.includes(key)) state.hiddenIdeas.push(key);
+    saveState();
+    render();
+    showToast("Idea removed");
+  }
+
+  function deleteDate(id, eventId, type) {
+    const friend = state.friends.find((item) => item.id === id);
+    if (!friend) return;
+    if (type === "birthday") {
+      if (!confirm(`Delete ${friend.name}'s birthday?`)) return;
+      friend.birthday = "";
+    } else {
+      const event = (friend.events || []).find((item) => item.id === eventId);
+      if (!event || !confirm(`Delete ${event.title}?`)) return;
+      friend.events = (friend.events || []).filter((item) => item.id !== eventId);
+    }
+    saveState();
+    render();
+    showToast("Date deleted");
   }
 
   function filterPeople(event) {
