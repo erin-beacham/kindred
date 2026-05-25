@@ -9,7 +9,7 @@ A mobile-first friendship CRM prototype for remembering who to reach out to, whe
 - Shows who is due today and what is coming soon
 - Logs contacts and creates relative follow-up reminders
 - Suggests outreach ideas from notes, interests, and upcoming events
-- Runs as a small installable PWA using local browser storage
+- Runs as a small installable PWA using IndexedDB in the browser
 
 ## Run locally
 
@@ -235,18 +235,18 @@ This is usually the best next step for personal use before investing in a native
 - A real `https://...` URL reachable from your iPhone
 - No laptop server needed after deployment
 - Home-screen install through Safari's Add to Home Screen
-- Local storage on the iPhone browser or home-screen web app
+- IndexedDB storage on the iPhone browser or home-screen web app
 - Simple updates by pushing changes to GitHub or redeploying the folder
 
-### Important local-storage behavior
+### Important browser-storage behavior
 
-Kindred currently stores data in browser local storage. That means:
+Kindred currently stores data in browser IndexedDB. That means:
 
 - Data entered on your iPhone stays on that iPhone/browser.
 - Data entered on your laptop does not automatically sync to your iPhone.
 - Data can be lost if Safari site data is cleared.
 - Private browsing may not preserve data.
-- Changing domains can create a separate local-storage bucket.
+- Changing domains can create a separate browser-storage bucket.
 
 If you eventually want the same friend data across multiple devices, the app will need a backend database, authentication, or iCloud-style sync. A hosted static site does not provide cross-device sync by itself.
 
@@ -340,11 +340,11 @@ For this project right now:
 1. Use GitHub Pages if you are comfortable with a public URL.
 2. Use Netlify if you want the easiest hosted dashboard and custom domain setup.
 3. Add the hosted URL to your iPhone home screen.
-4. Keep using local storage until you decide you need cross-device sync.
+4. Keep using IndexedDB until you decide you need cross-device sync.
 
 ### Privacy note
 
-A hosted static website means the app code is reachable by anyone who has the URL if the hosting service publishes it publicly. Your friend data is not committed to GitHub by the app; it is stored in your iPhone browser's local storage. Still, do not hard-code private notes, API keys, contacts, or secrets into the repository files.
+A hosted static website means the app code is reachable by anyone who has the URL if the hosting service publishes it publicly. Your friend data is not committed to GitHub by the app; it is stored in your iPhone browser's IndexedDB. Still, do not hard-code private notes, API keys, contacts, or secrets into the repository files.
 
 ## Local Browser Testing
 
@@ -387,7 +387,7 @@ http://192.168.1.42:5173
 
 ## Notes
 
-- Data is stored in the browser's local storage on the device where you use the app.
+- Data is stored in the browser's IndexedDB on the device where you use the app.
 - In the Capacitor version, that storage lives inside the installed app's web view.
 - A direct Xcode install is for development and personal testing. TestFlight or the App Store is the better path for sharing.
 - If using a free personal Apple Account instead of a paid Apple Developer Program account, the installed app may expire and need to be rebuilt from Xcode periodically.

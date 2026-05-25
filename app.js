@@ -1,5 +1,9 @@
 (function () {
-  const STORAGE_KEY = "kindred.v1";
+  const LEGACY_STORAGE_KEY = "kindred.v1";
+  const DB_NAME = "kindred";
+  const DB_VERSION = 1;
+  const STORE_NAME = "app-state";
+  const STATE_KEY = "kindred.v1";
   const cadenceOptions = [
     ["3d", "Every 3 days", 3],
     ["1w", "Every week", 7],
@@ -66,7 +70,7 @@
     ]
   };
 
-  let state = loadState();
+  let state = null;
   let modalMode = null;
 
   function uid() {
@@ -112,18 +116,75 @@
     return Math.round((a.getTime() - b.getTime()) / 86400000);
   }
 
-  function loadState() {
+  function cloneState(value) {
+    if (window.structuredClone) return window.structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function isValidState(value) {
+    return Boolean(value && Array.isArray(value.friends));
+  }
+
+  function openDatabase() {
+    return new Promise((resolve, reject) => {
+      if (!("indexedDB" in window)) {
+        reject(new Error("IndexedDB is not available."));
+        return;
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains(STORE_NAME)) {
+          database.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error("IndexedDB upgrade was blocked."));
+    });
+  }
+
+  function databaseRequest(mode, callback) {
+    return openDatabase().then(
+      (database) =>
+        new Promise((resolve, reject) => {
+          const transaction = database.transaction(STORE_NAME, mode);
+          const store = transaction.objectStore(STORE_NAME);
+          const request = callback(store);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+          transaction.oncomplete = () => database.close();
+          transaction.onerror = () => {
+            database.close();
+            reject(transaction.error);
+          };
+          transaction.onabort = () => {
+            database.close();
+            reject(transaction.error);
+          };
+        })
+    );
+  }
+
+  async function loadState() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (saved && Array.isArray(saved.friends)) return saved;
+      const saved = await databaseRequest("readonly", (store) => store.get(STATE_KEY));
+      if (isValidState(saved)) return saved;
+
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
+      if (isValidState(legacy)) {
+        await databaseRequest("readwrite", (store) => store.put(legacy, STATE_KEY));
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        return legacy;
+      }
     } catch (error) {
       console.warn(error);
     }
-    return sampleState;
+    return cloneState(sampleState);
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    databaseRequest("readwrite", (store) => store.put(state, STATE_KEY)).catch((error) => console.warn(error));
   }
 
   function cadence(friend) {
@@ -730,5 +791,8 @@
     navigator.serviceWorker.register("sw.js").catch(() => {});
   }
 
-  render();
+  loadState().then((savedState) => {
+    state = savedState;
+    render();
+  });
 })();
