@@ -438,7 +438,7 @@
         <div class="task-list">
           ${futureTasks.length ? futureTasks.map(renderFutureTask).join("") : renderEmpty("No upcoming cadence reminders.", "Daily and weekly rhythm will show up here.")}
         </div>
-        ${renderReminderControl()}
+        <div class="today-footer">${renderReminderControl()}</div>
       </section>
     `;
   }
@@ -463,7 +463,7 @@
       `;
     }
     if (Notification.permission === "denied") return "";
-    return '<button class="secondary-action reminder-action" data-action="enable-reminders" type="button">Enable Reminders</button>';
+    return '<div class="reminder-panel"><button class="secondary-action reminder-action" data-action="enable-reminders" type="button">Enable Reminders</button></div>';
   }
 
   function renderTask(task) {
