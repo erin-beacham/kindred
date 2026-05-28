@@ -428,7 +428,6 @@
           <h2>Today</h2>
           <span>${new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</span>
         </div>
-        ${renderReminderControl()}
         <div class="task-list">
           ${actions.length ? actions.map(renderTodayAction).join("") : renderEmpty("Nothing due today.", "Future reach-outs and dates are still below.")}
         </div>
@@ -439,6 +438,7 @@
         <div class="task-list">
           ${futureTasks.length ? futureTasks.map(renderFutureTask).join("") : renderEmpty("No upcoming cadence reminders.", "Daily and weekly rhythm will show up here.")}
         </div>
+        ${renderReminderControl()}
       </section>
     `;
   }
@@ -457,7 +457,7 @@
     if (Notification.permission === "granted") {
       return `
         <div class="reminder-panel">
-          <div class="field"><label>Daily notification time</label><input id="notification-time" type="time" value="${escapeHtml(state.notificationTime)}" /></div>
+          <div class="field reminder-time"><label>Daily notification time</label><input id="notification-time" type="time" value="${escapeHtml(state.notificationTime)}" /></div>
           <button class="secondary-action reminder-action" data-action="send-reminder-check" type="button">Check Reminders</button>
         </div>
       `;

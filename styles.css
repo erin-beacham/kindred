@@ -197,7 +197,6 @@ event-list,
 
 .reminder-action {
   width: 100%;
-  margin-bottom: 10px;
 }
 
 .task,
@@ -445,6 +444,20 @@ event-list,
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 253, 248, 0.62);
+}
+
+.reminder-panel {
+  margin-top: 20px;
+}
+
+.reminder-time {
+  min-width: 0;
+}
+
+.reminder-time input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field {
