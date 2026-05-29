@@ -390,6 +390,9 @@
             <h1>Kindred</h1>
             <p>${subtitle()}</p>
           </div>
+          <div class="top-accent" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><i></i>
+          </div>
           <button class="icon-button" type="button" data-action="${action.action}" aria-label="${escapeHtml(action.label)}" title="${escapeHtml(action.label)}">${icons.plus}</button>
         </header>
         <main class="main">
@@ -564,7 +567,7 @@
         </div>
         <div class="card-actions">
           <button class="tool-button" data-action="select-friend" data-id="${friend.id}" aria-label="Open profile">${icons.profile}</button>
-          <button class="tool-button danger" data-action="delete-friend" data-id="${friend.id}" aria-label="Delete ${escapeHtml(friend.name)}">${icons.trash}</button>
+          <button class="tool-button danger" data-action="delete-friend" data-id="${friend.id}" aria-label="Delete ${escapeHtml(friend.name)}">${icons.close}</button>
         </div>
       </article>
     `;
@@ -598,7 +601,7 @@
         <div class="pill-row">
           <button class="tiny-action" data-action="copy-idea" data-text="${escapeHtml(idea)}">Copy</button>
           <button class="tiny-action" data-action="select-friend" data-id="${friend.id}">Profile</button>
-          <button class="tiny-action danger" data-action="delete-idea" data-id="${friend.id}" data-idea="${escapeHtml(idea)}" aria-label="Delete idea for ${escapeHtml(friend.name)}">${icons.trash}</button>
+          <button class="tiny-action danger" data-action="delete-idea" data-id="${friend.id}" data-idea="${escapeHtml(idea)}" aria-label="Delete idea for ${escapeHtml(friend.name)}">${icons.close}</button>
         </div>
       </article>
     `;
@@ -636,7 +639,7 @@
           <p>${formatDate(item.date)} - ${relativeDay(item.date)}</p>
           <div class="pill-row"><span class="pill">${item.group === "recurring" ? "Recurring" : item.group === "follow-up" ? "Follow-up" : "Meaningful"}</span></div>
         </div>
-        <button class="tool-button danger" data-action="delete-date" data-id="${item.friend.id}" data-event-id="${item.type === "event" ? item.id : ""}" data-date-type="${item.type}" aria-label="Delete ${escapeHtml(item.title)} for ${escapeHtml(item.friend.name)}">${icons.trash}</button>
+        <button class="tool-button danger" data-action="delete-date" data-id="${item.friend.id}" data-event-id="${item.type === "event" ? item.id : ""}" data-date-type="${item.type}" aria-label="Delete ${escapeHtml(item.title)} for ${escapeHtml(item.friend.name)}">${icons.close}</button>
       </article>
     `;
   }
@@ -698,7 +701,7 @@
                 <div class="idea">
                   <p>${escapeHtml(idea)}</p>
                   <div class="pill-row">
-                    <button class="tiny-action danger" data-action="delete-idea" data-id="${friend.id}" data-idea="${escapeHtml(idea)}" aria-label="Delete idea for ${escapeHtml(friend.name)}">${icons.trash}</button>
+                    <button class="tiny-action danger" data-action="delete-idea" data-id="${friend.id}" data-idea="${escapeHtml(idea)}" aria-label="Delete idea for ${escapeHtml(friend.name)}">${icons.close}</button>
                   </div>
                 </div>`
             )
@@ -708,7 +711,7 @@
           <div class="pill-row">
             <button class="primary-action" data-action="open-log" data-id="${friend.id}">${icons.check}Log Contact</button>
             <button class="secondary-action" data-action="edit-friend" data-id="${friend.id}">Edit</button>
-            <button class="tiny-action danger" data-action="delete-friend" data-id="${friend.id}" aria-label="Delete ${escapeHtml(friend.name)}">${icons.trash}</button>
+            <button class="tiny-action danger" data-action="delete-friend" data-id="${friend.id}" aria-label="Delete ${escapeHtml(friend.name)}">${icons.close}</button>
           </div>
         </div>
       </section>
@@ -742,7 +745,7 @@
         </div>
         <div class="card-actions horizontal">
           <button class="tool-button" data-action="edit-log" data-log-id="${log.id}" aria-label="Edit history item">${icons.edit}</button>
-          <button class="tool-button danger" data-action="delete-log" data-log-id="${log.id}" aria-label="Delete history item">${icons.trash}</button>
+          <button class="tool-button danger" data-action="delete-log" data-log-id="${log.id}" aria-label="Delete history item">${icons.close}</button>
         </div>
       </article>
     `;

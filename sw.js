@@ -1,10 +1,10 @@
-const CACHE = "kindred-v11";
+const CACHE = "kindred-v16";
 const ASSETS = [
   "./",
   "index.html",
-  "styles.css?v=11",
-  "app.js?v=11",
-  "manifest.webmanifest?v=11",
+  "styles.css?v=16",
+  "app.js?v=16",
+  "manifest.webmanifest?v=16",
   "icon.svg"
 ];
 

@@ -4,8 +4,8 @@
   "description": "A private memory aid for staying close to friends.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f7f4ed",
-  "theme_color": "#f7f4ed",
+  "background_color": "#fbfaf7",
+  "theme_color": "#fbfaf7",
   "icons": [
     {
       "src": "icon.svg",
