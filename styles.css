@@ -289,16 +289,6 @@ event-list,
   gap: 10px;
 }
 
-.reminder-action {
-  width: 100%;
-}
-
-.today-footer {
-  margin-top: 34px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(234, 223, 227, 0.74);
-}
-
 .task,
 .person-card,
 .idea,
@@ -536,8 +526,7 @@ event-list,
   gap: 12px;
 }
 
-.form-section,
-.reminder-panel {
+.form-section {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
@@ -562,17 +551,6 @@ event-list,
 .date-row:last-child {
   padding-bottom: 0;
   border-bottom: 0;
-}
-
-.reminder-time {
-  min-width: 0;
-}
-
-.reminder-time input {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
 .field {

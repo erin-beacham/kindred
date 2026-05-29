@@ -36,7 +36,6 @@
     selectedFriendId: null,
     hiddenIdeas: [],
     completedItems: [],
-    notificationTime: "09:00",
     friends: [
       {
         id: uid(),
@@ -86,7 +85,6 @@
   let state = null;
   let modalMode = null;
   let editingLogId = null;
-  let notificationTimer = null;
 
   function uid() {
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -151,7 +149,6 @@
     const normalized = cloneState(value);
     if (!Array.isArray(normalized.hiddenIdeas)) normalized.hiddenIdeas = [];
     if (!Array.isArray(normalized.completedItems)) normalized.completedItems = [];
-    if (!normalized.notificationTime) normalized.notificationTime = "09:00";
     if (!normalized.activeTag) normalized.activeTag = "";
     normalized.friends = normalized.friends.map((friend) => ({
       ...friend,
@@ -453,7 +450,6 @@
         <div class="task-list">
           ${futureTasks.length ? futureTasks.map(renderFutureTask).join("") : renderEmpty("No upcoming cadence reminders.", "Daily and weekly rhythm will show up here.")}
         </div>
-        <div class="today-footer">${renderReminderControl()}</div>
       </section>
     `;
   }
@@ -467,20 +463,6 @@
     if (modalMode === "log-edit") return "Edit History";
     if (modalMode === "log") return "Log Contact";
     return "Kindred";
-  }
-
-  function renderReminderControl() {
-    if (!("Notification" in window)) return "";
-    if (Notification.permission === "granted") {
-      return `
-        <div class="reminder-panel">
-          <div class="field reminder-time"><label>Daily notification time</label><input id="notification-time" type="time" value="${escapeHtml(state.notificationTime)}" /></div>
-          <button class="secondary-action reminder-action" data-action="send-reminder-check" type="button">Check Reminders</button>
-        </div>
-      `;
-    }
-    if (Notification.permission === "denied") return "";
-    return '<div class="reminder-panel"><button class="secondary-action reminder-action" data-action="enable-reminders" type="button">Enable Reminders</button></div>';
   }
 
   function renderTask(task) {
@@ -990,7 +972,6 @@
     document.querySelector("#idea-form")?.addEventListener("submit", saveIdea);
     document.querySelector("#people-search")?.addEventListener("input", filterPeople);
     document.querySelector("#tag-filter")?.addEventListener("change", filterByTag);
-    document.querySelector("#notification-time")?.addEventListener("change", saveNotificationTime);
     document.querySelector("#modal")?.addEventListener("click", (event) => {
       if (event.target.id === "modal") closeModal();
     });
@@ -1048,8 +1029,6 @@
     if (action === "delete-date") deleteDate(button.dataset.id, button.dataset.eventId, button.dataset.dateType);
     if (action === "edit-log") editLog(button.dataset.logId);
     if (action === "delete-log") deleteLog(button.dataset.logId);
-    if (action === "enable-reminders") enableReminders();
-    if (action === "send-reminder-check") notifyDueItems();
   }
 
   function openPageModal(mode) {
@@ -1282,13 +1261,6 @@
     render();
   }
 
-  function saveNotificationTime(event) {
-    state.notificationTime = event.target.value || "09:00";
-    saveState();
-    scheduleDailyNotification();
-    showToast("Notification time saved");
-  }
-
   async function copyIdea(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -1296,51 +1268,6 @@
     } catch (error) {
       showToast(text);
     }
-  }
-
-  async function enableReminders() {
-    const permission = await Notification.requestPermission();
-    render();
-    if (permission === "granted") {
-      scheduleDailyNotification();
-      notifyDueItems();
-      showToast("Reminders enabled");
-    }
-  }
-
-  function notificationMessages() {
-    const cadenceDue = reachOutTasks(0);
-    const eventsDue = upcomingEvents(0).filter((item) => !isCompleted(item.type, item.friend.id, item.id, item.date));
-    const followUps = eventsDue.filter((item) => item.group === "follow-up");
-    const dates = eventsDue.filter((item) => item.group !== "follow-up");
-    const messages = [];
-    cadenceDue.forEach((task) => messages.push(`Reach out to ${task.friend.name}: cadence is due.`));
-    followUps.forEach((item) => messages.push(`Follow up with ${item.friend.name}: ${item.title}.`));
-    dates.forEach((item) => messages.push(`Remember ${item.title} for ${item.friend.name} today.`));
-    return messages;
-  }
-
-  function notifyDueItems() {
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    const messages = notificationMessages();
-    if (!messages.length) {
-      new Notification("Kindred", { body: "No friendship reminders due today." });
-      return;
-    }
-    new Notification("Kindred", { body: messages.slice(0, 4).join(" ") });
-  }
-
-  function scheduleDailyNotification() {
-    if (notificationTimer) window.clearTimeout(notificationTimer);
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    const [hours, minutes] = (state.notificationTime || "09:00").split(":").map(Number);
-    const next = new Date();
-    next.setHours(hours || 9, minutes || 0, 0, 0);
-    if (next <= new Date()) next.setDate(next.getDate() + 1);
-    notificationTimer = window.setTimeout(() => {
-      notifyDueItems();
-      scheduleDailyNotification();
-    }, next.getTime() - Date.now());
   }
 
   function closeModal() {
@@ -1367,7 +1294,6 @@
 
   loadState().then((savedState) => {
     state = savedState;
-    scheduleDailyNotification();
     render();
   });
 })();
