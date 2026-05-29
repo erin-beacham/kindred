@@ -453,6 +453,23 @@ event-list,
   background: rgba(255, 253, 248, 0.46);
 }
 
+.date-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.date-row {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(222, 216, 204, 0.72);
+}
+
+.date-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .reminder-time {
   min-width: 0;
 }

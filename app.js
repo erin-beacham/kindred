@@ -156,6 +156,7 @@
     normalized.friends = normalized.friends.map((friend) => ({
       ...friend,
       interests: Array.isArray(friend.interests) ? friend.interests : [],
+      customIdeas: Array.isArray(friend.customIdeas) ? friend.customIdeas : [],
       tags: Array.isArray(friend.tags) ? friend.tags : [],
       associates: Array.isArray(friend.associates) ? friend.associates : [],
       events: Array.isArray(friend.events)
@@ -381,6 +382,7 @@
 
   function render() {
     const app = document.querySelector("#app");
+    const action = pageAction();
     app.innerHTML = `
       <div class="app-shell">
         <header class="topbar">
@@ -388,7 +390,7 @@
             <h1>Kindred</h1>
             <p>${subtitle()}</p>
           </div>
-          <button class="icon-button" type="button" data-action="open-friend" aria-label="Add friend">${icons.plus}</button>
+          <button class="icon-button" type="button" data-action="${action.action}" aria-label="${escapeHtml(action.label)}" title="${escapeHtml(action.label)}">${icons.plus}</button>
         </header>
         <main class="main">
           ${renderToday()}
@@ -402,6 +404,16 @@
       </div>
     `;
     bindEvents();
+  }
+
+  function pageAction() {
+    const actions = {
+      today: { action: "open-page-log", label: "Add outreach result" },
+      people: { action: "open-friend", label: "Add friend" },
+      ideas: { action: "open-idea", label: "Add outreach idea" },
+      dates: { action: "open-date", label: "Add date" }
+    };
+    return actions[state.activeView] || actions.people;
   }
 
   function subtitle() {
@@ -447,6 +459,8 @@
     if (modalMode === "profile" && friend) return friend.name;
     if (modalMode === "friend" && friend) return "Edit Friend";
     if (modalMode === "friend") return "Add Friend";
+    if (modalMode === "date") return "Add Date";
+    if (modalMode === "idea") return "Add Outreach Idea";
     if (modalMode === "log-edit") return "Edit History";
     if (modalMode === "log") return "Log Contact";
     return "Kindred";
@@ -651,7 +665,9 @@
           </div>
           ${modalMode === "profile" && friend ? renderProfile(friend) : ""}
           ${modalMode === "friend" ? renderFriendForm(friend) : ""}
-          ${(modalMode === "log" || modalMode === "log-edit") && friend ? renderLogForm(friend) : ""}
+          ${modalMode === "date" ? renderDateForm() : ""}
+          ${modalMode === "idea" ? renderIdeaForm() : ""}
+          ${(modalMode === "log" || modalMode === "log-edit") && (friend || modalMode === "log") ? renderLogForm(friend) : ""}
         </div>
       </div>
     `;
@@ -756,13 +772,26 @@
         </div>
         <div class="field"><label>Notes</label><textarea name="notes" placeholder="What do they care about? What should future-you remember?">${escapeHtml(friend?.notes || "")}</textarea></div>
         <div class="form-section">
-          <div class="section-head compact-head"><h2>Add Important Date</h2><span>optional</span></div>
-          <div class="field"><label>Title</label><input name="eventTitle" placeholder="Job interview, anniversary, kid's birthday" /></div>
-          <div class="field"><label>Type</label><select name="eventKind"><option value="meaningful">Meaningful date</option><option value="recurring">Recurring yearly date</option></select></div>
-          <div class="field"><label>Date</label><input name="eventDate" type="date" /></div>
+          <div class="section-head compact-head"><h2>Add Important Dates</h2><span>optional</span></div>
+          <div class="date-fields" id="friend-date-fields">
+            ${renderFriendDateRow()}
+          </div>
+          <button class="secondary-action" type="button" data-action="add-friend-date">Add Another Date</button>
         </div>
         <button class="primary-action" type="submit">${friend ? "Save Friend" : "Add Friend"}</button>
       </form>
+    `;
+  }
+
+  function renderFriendDateRow() {
+    return `
+      <div class="date-row">
+        <div class="field"><label>Title</label><input name="eventTitle" placeholder="Job interview, anniversary, kid's birthday" /></div>
+        <div class="split">
+          <div class="field"><label>Type</label><select name="eventKind"><option value="meaningful">Meaningful date</option><option value="recurring">Recurring yearly date</option></select></div>
+          <div class="field"><label>Date</label><input name="eventDate" type="date" /></div>
+        </div>
+      </div>
     `;
   }
 
@@ -770,7 +799,7 @@
     const editingLog = modalMode === "log-edit" ? (friend.logs || []).find((log) => log.id === editingLogId) : null;
     return `
       <form class="form" id="log-form">
-        <input type="hidden" name="id" value="${friend.id}" />
+        ${friend ? `<input type="hidden" name="id" value="${friend.id}" />` : renderFriendSelect("id")}
         <input type="hidden" name="logId" value="${editingLog?.id || ""}" />
         <div class="field"><label>Date</label><input name="date" type="date" value="${escapeHtml(editingLog?.date || iso(today()))}" /></div>
         <div class="field"><label>What mattered?</label><textarea name="note" required placeholder="Talked about the interview, their mom's visit, a new book, or anything worth remembering.">${escapeHtml(editingLog?.note || "")}</textarea></div>
@@ -794,6 +823,41 @@
     `;
   }
 
+  function renderDateForm() {
+    return `
+      <form class="form" id="date-form">
+        ${renderFriendSelect("id")}
+        <div class="field"><label>Title</label><input name="eventTitle" required placeholder="Job interview, anniversary, kid's birthday" /></div>
+        <div class="field"><label>Type</label><select name="eventKind"><option value="meaningful">Meaningful date</option><option value="recurring">Recurring yearly date</option></select></div>
+        <div class="field"><label>Date</label><input name="eventDate" type="date" required /></div>
+        <button class="primary-action" type="submit">Add Date</button>
+      </form>
+    `;
+  }
+
+  function renderIdeaForm() {
+    return `
+      <form class="form" id="idea-form">
+        ${renderFriendSelect("id")}
+        <div class="field"><label>Idea</label><textarea name="idea" required placeholder="Send the article about urban gardens and ask how the balcony herbs are going."></textarea></div>
+        <button class="primary-action" type="submit">Add Idea</button>
+      </form>
+    `;
+  }
+
+  function renderFriendSelect(name) {
+    const friends = [...state.friends].sort((a, b) => a.name.localeCompare(b.name));
+    return `
+      <div class="field">
+        <label>Person</label>
+        <select name="${name}" required>
+          <option value="">Choose someone</option>
+          ${friends.map((friend) => `<option value="${friend.id}" ${state.selectedFriendId === friend.id ? "selected" : ""}>${escapeHtml(friend.name)}</option>`).join("")}
+        </select>
+      </div>
+    `;
+  }
+
   function renderPills(items) {
     if (!items || !items.length) return "";
     return `<div class="pill-row">${items.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("")}</div>`;
@@ -810,6 +874,7 @@
       friend.contact,
       ...(friend.tags || []),
       ...(friend.interests || []),
+      ...(friend.customIdeas || []),
       ...(friend.associates || []).map((item) => item.name)
     ]
       .join(" ")
@@ -827,28 +892,89 @@
 
   function buildIdeas(friend) {
     const first = friend.name.split(" ")[0];
-    const ideas = [];
-    const soon = (friend.events || [])
-      .map((event) => ({ event, date: eventDueDate(event) }))
-      .filter((item) => item.date)
-      .sort((a, b) => Math.abs(daysBetween(a.date, today())) - Math.abs(daysBetween(b.date, today())))[0];
-    if (soon) {
-      const diff = daysBetween(soon.date, today());
-      if (diff < 0) ideas.push(`Ask ${first} how ${soon.event.title.toLowerCase()} went, and leave room for the real answer.`);
-      else if (diff <= 7) ideas.push(`Wish ${first} well for ${soon.event.title.toLowerCase()} coming up ${relativeDay(soon.date).toLowerCase()}.`);
+    const ideas = [...(friend.customIdeas || [])];
+    const cue = strongestCue(friend);
+    const recent = recentLogCue(friend);
+    const overdueBy = Math.max(0, daysBetween(today(), dueDate(friend)));
+    const nextEvent = nextEventCue(friend);
+    const pastEvent = pastEventCue(friend);
+    const people = associateCue(friend);
+    const interests = (friend.interests || []).slice(0, 3);
+
+    if (pastEvent) {
+      ideas.push(`Ask ${first} how ${pastEvent.title.toLowerCase()} went, and leave room for the real answer.`);
     }
-    if (friend.notes) {
-      const sentence = friend.notes.split(/[.!?]/).find((part) => part.trim().length > 18);
-      if (sentence) ideas.push(`Follow up on this: ${sentence.trim()}.`);
+    if (nextEvent) {
+      const when = daysBetween(nextEvent.date, today()) <= 1 ? relativeDay(nextEvent.date).toLowerCase() : `on ${formatDate(nextEvent.date)}`;
+      ideas.push(`Send a note about ${nextEvent.title.toLowerCase()} coming up ${when}; ask what would feel supportive right now.`);
     }
-    (friend.associates || []).slice(0, 2).forEach((associate) => {
-      ideas.push(`Ask ${first} how ${associate.name} is doing.`);
+    if (recent) {
+      ideas.push(`Circle back to your last conversation: "${recent}". Ask what has changed since then.`);
+    }
+    if (cue && cue !== recent) {
+      ideas.push(`Use this detail as the opener: "${cue}". Then ask one gentle follow-up question.`);
+    }
+    if (people.length) {
+      ideas.push(`Check in on ${people.join(" and ")}; make it casual so ${first} can answer quickly.`);
+    }
+    if (interests.length >= 2) {
+      ideas.push(`Send ${first} something small about ${interests[0]} or ${interests[1]}, with a quick "thought this might be your lane."`);
+    } else if (interests.length) {
+      ideas.push(`Ask ${first} what has been good lately in ${interests[0]}; keep it specific enough to be easy to answer.`);
+    }
+    if (overdueBy > 7) {
+      ideas.push(`Acknowledge the gap lightly: "I have been meaning to check in. How are you, really?"`);
+    } else {
+      ideas.push(`Send a low-pressure opener: "You crossed my mind today. What has been taking up most of your attention?"`);
+    }
+    ideas.push(`Invite a small next step: coffee, a walk, or a 15-minute catch-up sometime this week.`);
+    return uniqueIdeas(ideas).slice(0, 7);
+  }
+
+  function uniqueIdeas(ideas) {
+    const seen = new Set();
+    return ideas.filter((idea) => {
+      const key = idea.toLowerCase().replace(/\s+/g, " ").trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
-    (friend.interests || []).slice(0, 3).forEach((interest) => {
-      ideas.push(`Send something small about ${interest} and ask what ${first} has been enjoying lately.`);
-    });
-    ideas.push(`Send a no-pressure note: "Thought of you today. How has your week been?"`);
-    return [...new Set(ideas)].slice(0, 5);
+  }
+
+  function textCue(value) {
+    return String(value || "")
+      .split(/[.!?\n]/)
+      .map((part) => part.trim())
+      .filter((part) => part.length >= 18 && part.length <= 150)[0] || "";
+  }
+
+  function strongestCue(friend) {
+    return textCue(friend.notes) || textCue((friend.logs || [])[0]?.note);
+  }
+
+  function recentLogCue(friend) {
+    return textCue((friend.logs || [])[0]?.note);
+  }
+
+  function nextEventCue(friend) {
+    return (friend.events || [])
+      .map((event) => ({ title: event.title, date: eventDueDate(event), group: event.kind || "meaningful" }))
+      .filter((item) => item.date && daysBetween(item.date, today()) >= 0 && daysBetween(item.date, today()) <= 21)
+      .sort((a, b) => a.date - b.date)[0];
+  }
+
+  function pastEventCue(friend) {
+    return (friend.events || [])
+      .map((event) => ({ title: event.title, date: parseDate(event.date), group: event.kind || "meaningful" }))
+      .filter((item) => item.date && item.group !== "recurring" && daysBetween(item.date, today()) < 0 && daysBetween(item.date, today()) >= -21)
+      .sort((a, b) => b.date - a.date)[0];
+  }
+
+  function associateCue(friend) {
+    return (friend.associates || [])
+      .filter((item) => item.name)
+      .slice(0, 2)
+      .map((item) => item.name);
   }
 
   function bindEvents() {
@@ -857,6 +983,8 @@
     });
     document.querySelector("#friend-form")?.addEventListener("submit", saveFriend);
     document.querySelector("#log-form")?.addEventListener("submit", saveLog);
+    document.querySelector("#date-form")?.addEventListener("submit", saveDate);
+    document.querySelector("#idea-form")?.addEventListener("submit", saveIdea);
     document.querySelector("#people-search")?.addEventListener("input", filterPeople);
     document.querySelector("#tag-filter")?.addEventListener("change", filterByTag);
     document.querySelector("#notification-time")?.addEventListener("change", saveNotificationTime);
@@ -877,6 +1005,18 @@
       state.selectedFriendId = null;
       modalMode = "friend";
       render();
+    }
+    if (action === "open-page-log") {
+      openPageModal("log");
+    }
+    if (action === "open-date") {
+      openPageModal("date");
+    }
+    if (action === "open-idea") {
+      openPageModal("idea");
+    }
+    if (action === "add-friend-date") {
+      addFriendDateRow();
     }
     if (action === "select-friend") {
       state.selectedFriendId = button.dataset.id;
@@ -909,9 +1049,30 @@
     if (action === "send-reminder-check") notifyDueItems();
   }
 
+  function openPageModal(mode) {
+    if (!state.friends.length) {
+      state.selectedFriendId = null;
+      modalMode = "friend";
+      render();
+      showToast("Add a friend first");
+      return;
+    }
+    state.selectedFriendId = null;
+    editingLogId = null;
+    modalMode = mode;
+    render();
+  }
+
+  function addFriendDateRow() {
+    const fields = document.querySelector("#friend-date-fields");
+    if (!fields) return;
+    fields.insertAdjacentHTML("beforeend", renderFriendDateRow());
+  }
+
   function saveFriend(event) {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.target));
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData);
     const interests = parseList(data.interests);
     const tags = parseList(data.tags);
     const associates = [
@@ -921,15 +1082,18 @@
     ];
     const existing = state.friends.find((friend) => friend.id === data.id);
     const events = existing?.events ? [...existing.events] : [];
-    if (data.eventTitle && data.eventDate) {
+    formData.getAll("eventTitle").forEach((title, index) => {
+      const trimmedTitle = title.trim();
+      const date = formData.getAll("eventDate")[index];
+      if (!trimmedTitle || !date) return;
       events.push({
         id: uid(),
-        title: data.eventTitle.trim(),
-        date: data.eventDate,
-        repeat: data.eventKind === "recurring" ? "yearly" : "none",
-        kind: data.eventKind
+        title: trimmedTitle,
+        date,
+        repeat: formData.getAll("eventKind")[index] === "recurring" ? "yearly" : "none",
+        kind: formData.getAll("eventKind")[index] || "meaningful"
       });
-    }
+    });
     const friend = {
       id: existing?.id || uid(),
       name: data.name.trim(),
@@ -940,6 +1104,7 @@
       tags,
       associates,
       interests,
+      customIdeas: existing?.customIdeas || [],
       notes: data.notes.trim(),
       events,
       logs: existing?.logs || []
@@ -975,10 +1140,48 @@
         { id: uid(), title: data.eventTitle.trim(), date: addRelativeDate(data.date, data.followUpDelay), repeat: "none", kind: "follow-up" }
       ];
     }
+    state.selectedFriendId = friend.id;
     modalMode = "profile";
     saveState();
     render();
     showToast("Contact logged");
+  }
+
+  function saveDate(event) {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target));
+    const friend = state.friends.find((item) => item.id === data.id);
+    if (!friend || !data.eventTitle || !data.eventDate) return;
+    friend.events = [
+      ...(friend.events || []),
+      {
+        id: uid(),
+        title: data.eventTitle.trim(),
+        date: data.eventDate,
+        repeat: data.eventKind === "recurring" ? "yearly" : "none",
+        kind: data.eventKind
+      }
+    ];
+    state.selectedFriendId = friend.id;
+    modalMode = "profile";
+    saveState();
+    render();
+    showToast("Date added");
+  }
+
+  function saveIdea(event) {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target));
+    const friend = state.friends.find((item) => item.id === data.id);
+    const idea = data.idea.trim();
+    if (!friend || !idea) return;
+    friend.customIdeas = [...new Set([idea, ...(friend.customIdeas || [])])];
+    state.hiddenIdeas = state.hiddenIdeas.filter((key) => key !== ideaKey(friend, idea));
+    state.selectedFriendId = friend.id;
+    modalMode = "profile";
+    saveState();
+    render();
+    showToast("Idea added");
   }
 
   function quickLog(id) {
@@ -1005,6 +1208,13 @@
   function deleteIdea(id, idea) {
     const friend = state.friends.find((item) => item.id === id);
     if (!friend || !idea) return;
+    if ((friend.customIdeas || []).includes(idea)) {
+      friend.customIdeas = friend.customIdeas.filter((item) => item !== idea);
+      saveState();
+      render();
+      showToast("Idea deleted");
+      return;
+    }
     const key = ideaKey(friend, idea);
     if (!state.hiddenIdeas.includes(key)) state.hiddenIdeas.push(key);
     saveState();
